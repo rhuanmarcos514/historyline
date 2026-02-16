@@ -153,7 +153,7 @@ export default function RelationshipsView({ character, setCharacter, onNPCIntera
 
       <Text style={styles.subtitle}>Sua Família</Text>
 
-      <ScrollView style={styles.scrollContainer}>
+      <ScrollView style={styles.scrollContainer} nestedScrollEnabled>
         {familyMembers.length === 0 ? (
           <Text style={styles.emptyText}>Nenhum familiar encontrado.</Text>
         ) : (

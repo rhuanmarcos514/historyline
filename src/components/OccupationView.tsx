@@ -251,7 +251,7 @@ export default function OccupationView({
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} nestedScrollEnabled>
       {/* Title removed - redundant with SheetHeader */}
 
       {/* ========== SOCIAL CLASS HEADER (ALWAYS ON TOP) ========== */}
@@ -504,7 +504,7 @@ export default function OccupationView({
       {selectedCoworker && (
         <Modal visible transparent animationType="slide" onRequestClose={() => setSelectedCoworker(null)}>
           <View style={styles.modalOverlay}>
-            <ScrollView style={styles.modalScrollView} contentContainerStyle={styles.modalScrollContent}>
+            <ScrollView style={styles.modalScrollView} contentContainerStyle={styles.modalScrollContent} nestedScrollEnabled>
               <View style={styles.modalContainer}>
                 {/* Header */}
                 <View style={styles.modalHeader}>

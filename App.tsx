@@ -2,6 +2,9 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
+  PanResponder,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,6 +24,7 @@ import { generatePhysicalTraits, getAgeLabel, getAvatarEmoji, getPhysicalDescrip
 import { generateFamilyBackground, generateNameForClass, getSocialClassIcon, getSocialClassName } from './src/utils/socialClass';
 
 import { EventModal } from './src/components/EventModal';
+import SheetHeader from './src/components/SheetHeader';
 import { ViewProvider, useViewContext } from './src/context/ViewContext';
 import type { SimpleEvent } from './src/types/game.types';
 import { generateClassmates, generateNewClassmateName } from './src/utils/classmates';
@@ -2281,6 +2285,72 @@ function AppContent() {
     );
   };
 
+  const isSheetOpen = currentView !== 'DASHBOARD';
+  const sheetTranslateY = useRef(new Animated.Value(0)).current;
+
+  const closeSheet = () => {
+    setSelectedCategory(null);
+    setCurrentView('DASHBOARD');
+  };
+
+  const getSheetTitle = () => {
+    switch (currentView) {
+      case 'RELATIONSHIPS':
+        return 'Relações';
+      case 'OCCUPATION':
+        return 'Ocupação';
+      case 'ASSETS':
+        return 'Posses';
+      case 'ACTIVITIES':
+        return selectedCategory === 'body_soul'
+          ? 'Corpo & Alma'
+          : selectedCategory === 'crime'
+            ? 'Crimes'
+            : 'Atividades';
+      default:
+        return '';
+    }
+  };
+
+  useEffect(() => {
+    if (!isSheetOpen) {
+      sheetTranslateY.setValue(0);
+    }
+  }, [isSheetOpen, sheetTranslateY]);
+
+  const sheetPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => gestureState.dy > 4,
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          sheetTranslateY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const shouldClose = gestureState.dy > 120 || gestureState.vy > 1;
+        if (shouldClose) {
+          Animated.timing(sheetTranslateY, {
+            toValue: 520,
+            duration: 180,
+            useNativeDriver: true,
+          }).start(() => {
+            closeSheet();
+            sheetTranslateY.setValue(0);
+          });
+          return;
+        }
+
+        Animated.spring(sheetTranslateY, {
+          toValue: 0,
+          useNativeDriver: true,
+          tension: 70,
+          friction: 9,
+        }).start();
+      },
+    })
+  ).current;
+
   // === RENDER ===
   if (!character) {
     return (
@@ -2306,9 +2376,8 @@ function AppContent() {
 
 
 
-      {/* DASHBOARD VIEW */}
-      {currentView === 'DASHBOARD' && (
-        <>
+      {/* DASHBOARD BASE VIEW */}
+      <>
           {/* CABEÇALHO */}
           <View style={styles.header}>
             <Text style={styles.headerName}>
@@ -2351,6 +2420,7 @@ function AppContent() {
           <ScrollView
             ref={scrollViewRef}
             style={styles.logSection}
+            nestedScrollEnabled
             onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
           >
             {gameLog.map((log, index) => (
@@ -2367,8 +2437,24 @@ function AppContent() {
             </View>
           )}
 
-        </>
-      )}
+      </>
+
+      {/* FLOATING SHEET OVERLAY */}
+      {isSheetOpen && (
+        <View style={styles.sheetOverlay}>
+          <TouchableOpacity
+            style={[
+              styles.sheetBackdrop,
+              Platform.OS === 'web' ? ({ backdropFilter: 'blur(5px)' } as any) : null,
+            ]}
+            activeOpacity={1}
+            onPress={closeSheet}
+          />
+          <Animated.View style={[styles.sheetContainer, { transform: [{ translateY: sheetTranslateY }] }]}>
+            <View {...sheetPanResponder.panHandlers}>
+              <SheetHeader title={getSheetTitle()} onClose={closeSheet} onBack={closeSheet} />
+            </View>
+            <View style={styles.sheetBody}>
 
       {/* RELATIONSHIPS VIEW */}
       {currentView === 'RELATIONSHIPS' && (
@@ -2404,7 +2490,7 @@ function AppContent() {
               <Text style={styles.assetsEmptyText}>Você não possui nenhum item.</Text>
             </View>
           ) : (
-            <ScrollView style={styles.assetsScroll}>
+            <ScrollView style={styles.assetsScroll} nestedScrollEnabled>
               {/* Infância */}
               {character.inventory.filter(i => i.type === 'childhood').length > 0 && (
                 <>
@@ -2547,6 +2633,11 @@ function AppContent() {
         </View>
       )}
 
+            </View>
+          </Animated.View>
+        </View>
+      )}
+
       {/* ACTIVITY MICRO-EVENT MODAL */}
       <EventModal
         isOpen={!!activeActivity}
@@ -2664,6 +2755,33 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingTop: 50,
     paddingBottom: 80,
+  },
+  sheetOverlay: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    justifyContent: 'flex-end',
+    zIndex: 20,
+  },
+  sheetBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
+  sheetContainer: {
+    height: '88%',
+    backgroundColor: COLORS.background.primary,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: COLORS.background.tertiary,
+  },
+  sheetBody: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 20,
   },
   hungerBorder: {
     borderWidth: 3,
